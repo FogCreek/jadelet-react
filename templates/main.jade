@@ -1,0 +1,14 @@
+- React = require 'react'
+- { JadeletWrapper } = require '../index'
+- Item = require './item'
+- ItemComponent = require '../components/Item'
+- ItemPresenter = require '../presenters/item'
+
+div
+  - if @show
+    span hi
+    ul
+      - @items.forEach (item) ->
+        = Item(ItemPresenter(item))
+        = React.createElement ItemComponent, { item: item }
+        = React.createElement JadeletWrapper, { template: Item, presenter: ItemPresenter(item) }
