@@ -74,5 +74,17 @@ export function runtime(self) {
       return v;
     }
   });
+  let component;
+  return {
+    buffer(o) {
+      if (rootElement) {
+        throw "Multiple root elements";
+      }
+      rootElement = o;
+    },
+    element(tag, _, attrs, childFn) {
+      return { tag, attrs, childFn };
+    }
+  };
   return createSubRoot(rootProto, selfProxy);
 }
