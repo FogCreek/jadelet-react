@@ -4,7 +4,7 @@ import cs from 'coffee-script';
 import Jadelet from 'jadelet/dist/main';
 import through from 'through2';
 
-function jadelet({ compiler = cs, runtime = 'runtime' } = {}) {
+function jadelet({ compiler = cs, runtime = 'require("../").runtime' } = {}) {
   return through.obj((file, enc, cb) => {
     const src = file.isBuffer() ? file.contents.toString(enc) : file.contents;
     const out = Jadelet.compile(src, { compiler, runtime });

@@ -1,15 +1,8 @@
 import React from 'react';
+import Observable from 'o_0';
 
 function isObservable(o) {
   return typeof o === "function" && typeof o.observe === "function";
-}
-
-export function isJadeletRoot(o) {
-  return (
-    typeof o === "object" &&
-    typeof o.children === "object" &&
-    o.observed instanceof Set
-  );
 }
 
 function incOrWrap(n) {
@@ -18,73 +11,103 @@ function incOrWrap(n) {
 
 function useForceUpdate() {
   const [, update] = React.useState(Number.MIN_SAFE_INTEGER);
-  const cb = React.useCallback(() => update(incOrWrap), [update]);
+  const cb = React.useCallback(() => update(incOrWrap), []);
   return cb;
 }
 
-export function JadeletWrapper({ template, presenter, ...rest }) {
-  const root = template({ ...presenter, ...rest });
-  const forceUpdate = useForceUpdate();
-  React.useEffect(() => {
-    root.observed.forEach(observable => observable.observe(forceUpdate));
-    return () => {
-      root.observed.forEach(observable => observable.stopObserving(forceUpdate));
-    };
-  });
-  return React.createElement(React.Fragment, {}, ...root.children);
-}
-
-function createSubRoot(rootProto, self) {
-  const root = Object.create(rootProto, {
-    children: {
-      value: []
-    }
-  });
+function createRoot() {
+  let children = [];
   return {
     buffer(o) {
-      if (isJadeletRoot(o)) {
-        Array.from(o.observed).forEach((observable) => {
-          root.observed.add(observable);
+      children.push(o);
+    },
+    element(tag, presenter, attrsFn, childrenFn) {
+      return { tag, presenter, attrsFn, childrenFn };
+    },
+    get children() {
+      return children;
+    }
+  };
+}
+
+function unwrapObservable(maybeObservable) {
+  if (isObservable) {
+    return maybeObservable();
+  }
+  return maybeObservable;
+}
+
+function buildChild(child) {
+  if (Array.isArray(child)) {
+    return buildChildren(child);
+  }
+  if (isObservable(child)) {
+    return buildChild(child());
+  }
+  if (typeof child === "function") {
+    return React.createElement(child);
+  }
+  return child;
+}
+
+function buildChildren(children) {
+  return children.map(buildChild);
+}
+
+function mapAttrs(attrs) {
+  // Todo
+  return attrs;
+}
+
+function buildJadeletComponent({ tag, presenter, attrsFn, childrenFn }) {
+  const root = createRoot();
+  const attrsObservable = Observable(attrsFn.bind(presenter));
+  const observed = [attrsObservable];
+  childrenFn.call(presenter, root);
+  const childrenDescriptors = root.children.map((childDescriptor) => {
+    if (typeof childDescriptor === "object") {
+      return buildJadeletComponent(childDescriptor);
+    }
+    const ob = Observable(childDescriptor.bind(presenter));
+    observed.push(ob);
+    return ob;
+  });
+  const component = () => {
+    const forceUpdate = useForceUpdate();
+    React.useEffect(() => {
+      const cb = () => {
+        forceUpdate();
+      };
+      observed.forEach((observable) => {
+        observable.observe(cb);
+      });
+      return () => {
+        observed.forEach((observable) => {
+          observable.stopObserving(cb);
         });
-        o = o.children[0];
-      }
-      root.children.push(o);
-    },
-    element(tag, _, attrs, childFn) {
-      const subRoot = createSubRoot(rootProto, self);
-      childFn.call(self, subRoot);
-      return React.createElement(tag, attrs, ...subRoot.root.children);
-    },
-    get root() {
-      return root;
-    }
+      };
+    }, []);
+    const children = buildChildren(childrenDescriptors);
+    return React.createElement(tag, mapAttrs(attrsObservable()), ...children);
   };
+  component.displayName = `Jadelet<${tag}>`;
+  return component;
 }
 
-export function runtime(self) {
-  const rootProto = {
-    observed: new Set()
-  };
-  const selfProxy = new Proxy(self, {
-    get(target, prop) {
-      const v = target[prop];
-      if (isObservable(v)) {
-        rootProto.observed.add(v);
-      }
-      return v;
-    }
-  });
-  let component;
+export function runtime() {
+  let rootComponent;
   return {
     buffer(o) {
-      if (rootElement) {
+      if (rootComponent) {
         throw "Multiple root elements";
       }
-      rootElement = o;
+      rootComponent = buildJadeletComponent(o);
     },
-    element(tag, _, attrs, childFn) {
-      return { tag, attrs, childFn };
+    element(tag, presenter, attrsFn, childrenFn) {
+      return { tag, presenter, attrsFn, childrenFn };
+    },
+    get root() {
+      return rootComponent;
     }
   };
-  return createSubRoot(rootProto, selfProxy);
 }

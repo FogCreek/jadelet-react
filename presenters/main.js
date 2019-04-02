@@ -5,10 +5,10 @@ function inc(n) {
 }
 
 module.exports = function MainPresenter() {
-  const items = Observable([1, 2, 3, 4]);
+  const items = Observable([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
   setInterval(() => {
     items(items.map(inc));
-  }, 1000);
+  }, 1);
   return {
     items
   };

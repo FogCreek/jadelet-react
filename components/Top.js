@@ -1,16 +1,37 @@
 import React from 'react';
 import { JadeletWrapper } from '../';
-import Main from '../templates-out/main';
+import mainTemplate from '../templates-out/main';
 import MainPresenter from '../presenters/main';
 
 export function Top() {
-  const [show, setShow] = React.useState(true);
   const mainPresenterInstance = React.useRef(MainPresenter());
+  const Main = React.useMemo(() => mainTemplate(mainPresenterInstance.current), [mainPresenterInstance.current]);
   return (
     <React.Fragment>
       <h1>Hello, world!</h1>
-      <button onClick={() => setShow(!show)}>Swap!</button>
-      <JadeletWrapper template={Main} presenter={mainPresenterInstance.current} show={show} />
+      <Main />
     </React.Fragment>
   );
 }
+
+// const inc = (x) => x + 1;
+
+// export function Top() {
+//   const [nums, setNums] = React.useState([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+//   React.useEffect(() => {
+//     const timeout = setTimeout(() => {
+//       setNums(nums.map(inc));
+//     }, 1);
+//     return () => clearTimeout(timeout);
+//   });
+//   return (
+//     <React.Fragment>
+//       <h1>Hello, world!</h1>
+//       <div>
+//         <ul>
+//           {nums.map((num, idx) => <li key={`item-${idx}`}>{num}</li>)}
+//         </ul>
+//       </div>
+//     </React.Fragment>
+//   )
+// }
