@@ -1,5 +1,4 @@
-import path from 'path';
-import * as t from '@babel/types';
+const t = require("@babel/types");
 
 function isRootAccess(prop) {
   return (node) => t.isMemberExpression(node) && node.object.name === "__root" && node.property.name === prop;
@@ -12,7 +11,7 @@ function isRuntime(node) {
   return t.isMemberExpression(node) && node.property.name === "runtime";
 }
 
-export default function JadeletReactPreprocessor() {
+module.exports = function JadeletReactPreprocessor() {
   return {
     visitor: {
       CallExpression(path, state) {
@@ -27,4 +26,4 @@ export default function JadeletReactPreprocessor() {
       }
     }
   };
-}
+};

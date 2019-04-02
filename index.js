@@ -91,7 +91,7 @@ const templatePresenterCache = new Map();
 
 export function runtime(presenter, fileName) {
   let templateCache = templatePresenterCache.get(fileName);
-  if (!cached) {
+  if (!templateCache) {
     const cache = new WeakMap();
     templatePresenterCache.set(fileName, cache);
     templateCache = cache;
