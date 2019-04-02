@@ -5,10 +5,6 @@
 - ItemPresenter = require '../presenters/item'
 
 div
-  - if @show
-    span hi
-    ul
-      - @items.forEach (item) ->
-        = Item(ItemPresenter(item))
-        = React.createElement ItemComponent, { item: item }
-        = React.createElement JadeletWrapper, { template: Item, presenter: ItemPresenter(item) }
+  span hi
+  ul
+    = @items.map (item, idx) -> React.createElement Item(ItemPresenter(item)), { key: "item-#{idx}" }

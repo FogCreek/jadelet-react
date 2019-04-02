@@ -1,15 +1,38 @@
 import React from 'react';
 
-function isObservable(o) {
-  return typeof o === "function" && typeof o.observe === "function";
+const PresenterContext = React.createContext();
+
+const componentCache = new Map();
+
+function mapAttrs(attrs) {
+  if (attrs.class) {
+    attrs.className = attrs.class.join(' ');
+    delete attrs.class;
+  }
+  return attrs;
 }
 
-export function isJadeletRoot(o) {
-  return (
-    typeof o === "object" &&
-    typeof o.children === "object" &&
-    o.observed instanceof Set
-  );
+function createRoot() {
+  const children = [];
+  return {
+    buffer(o) {
+      children.push(o);
+    },
+    element(tag, attrFn, childrenFn) {
+      return React.createElement(getJadeletComponent(tag), { attrFn, childrenFn });
+    },
+    get children() {
+      return children;
+    }
+  };
+}
+
+function callOn(prop, ...args) {
+  return (obj) => obj[prop](...args);
+}
+
+function isObservable(o) {
+  return typeof o === "function" && typeof o.observe === "function";
 }
 
 function incOrWrap(n) {
@@ -22,57 +45,87 @@ function useForceUpdate() {
   return cb;
 }
 
-export function JadeletWrapper({ template, presenter, ...rest }) {
-  const root = template({ ...presenter, ...rest });
-  const forceUpdate = useForceUpdate();
-  React.useEffect(() => {
-    root.observed.forEach(observable => observable.observe(forceUpdate));
-    return () => {
-      root.observed.forEach(observable => observable.stopObserving(forceUpdate));
-    };
-  });
-  return React.createElement(React.Fragment, {}, ...root.children);
-}
-
-function createSubRoot(rootProto, self) {
-  const root = Object.create(rootProto, {
-    children: {
-      value: []
+function hookGet(obj, fn) {
+  return new Proxy(obj, {
+    get(_, attr) {
+      const value = obj[attr];
+      fn(value);
+      return value;
     }
   });
+}
+
+function getJadeletComponent(tagName) {
+  const cached = componentCache.get(tagName);
+  if (cached) {
+    return cached;
+  }
+  function Component({ attrFn, childrenFn, ...rest }) {
+    const presenter = React.useContext(PresenterContext);
+    const observed = React.useMemo(() => new Set(), []);
+    const forceUpdate = useForceUpdate();
+    React.useEffect(() => {
+      observed.forEach(callOn("observe", forceUpdate));
+      return () => {
+        observed.forEach(callOn("stopObserving", forceUpdate));
+      };
+    });
+    const hookedPresenter = hookGet({ ...presenter, ...rest }, (maybeObservable) => {
+      if (isObservable(maybeObservable) && !observed.has(maybeObservable)) {
+        observed.add(maybeObservable);
+      }
+    });
+    const attrs = mapAttrs(attrFn.call(hookedPresenter));
+    const root = createRoot();
+    childrenFn.call(hookedPresenter, root);
+    return React.createElement(tagName, attrs, ...root.children);
+  }
+  Object.defineProperty(Component, "name", {
+    value: `Jadelet[${tagName}]`
+  });
+  componentCache.set(tagName, Component);
+  return Component;
+}
+
+const templatePresenterCache = new Map();
+
+export function runtime(presenter, fileName) {
+  let templateCache = templatePresenterCache.get(fileName);
+  if (!cached) {
+    const cache = new WeakMap();
+    templatePresenterCache.set(fileName, cache);
+    templateCache = cache;
+  }
+  const cached = templateCache.get(presenter);
+  if (cached) {
+    return cached;
+  }
+  let rootElement;
   return {
     buffer(o) {
-      if (isJadeletRoot(o)) {
-        Array.from(o.observed).forEach((observable) => {
-          root.observed.add(observable);
-        });
-        o = o.children[0];
+      if (rootElement) {
+        throw 'Multiple root elements';
       }
-      root.children.push(o);
+      rootElement = o;
     },
-    element(tag, _, attrs, childFn) {
-      const subRoot = createSubRoot(rootProto, self);
-      childFn.call(self, subRoot);
-      return React.createElement(tag, attrs, ...subRoot.root.children);
+    element(tag, attrFn, childrenFn) {
+      return { tag, attrFn, childrenFn };
     },
     get root() {
-      return root;
-    }
-  };
-}
-
-export function runtime(self) {
-  const rootProto = {
-    observed: new Set()
-  };
-  const selfProxy = new Proxy(self, {
-    get(target, prop) {
-      const v = target[prop];
-      if (isObservable(v)) {
-        rootProto.observed.add(v);
+      const { tag, attrFn, childrenFn } = rootElement;
+      const JadeletComponent = getJadeletComponent(tag);
+      function Component(props) {
+        return (
+          React.createElement(PresenterContext.Provider, { value: presenter }, 
+            React.createElement(JadeletComponent, { attrFn, childrenFn, ...props })
+          )
+        );
       }
-      return v;
+      Object.defineProperty(Component, "name", {
+        value: `JadeletTemplate[${fileName}]`
+      });
+      templateCache.set(presenter, Component);
+      return Component;
     }
-  });
-  return createSubRoot(rootProto, selfProxy);
+  };
 }

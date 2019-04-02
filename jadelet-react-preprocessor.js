@@ -1,60 +1,28 @@
-import { parse } from '@babel/parser';
+import path from 'path';
 import * as t from '@babel/types';
+
+function isRootAccess(prop) {
+  return (node) => t.isMemberExpression(node) && node.object.name === "__root" && node.property.name === prop;
+}
+
+const isRootBuffer = isRootAccess("buffer");
+const isRootElement = isRootAccess("element");
+
+function isRuntime(node) {
+  return t.isMemberExpression(node) && node.property.name === "runtime";
+}
 
 export default function JadeletReactPreprocessor() {
   return {
     visitor: {
-      Program(path, { file }) {
-        path.node.body.unshift(
-          t.importDeclaration(
-            [
-              t.importSpecifier(
-                t.identifier('runtime'),
-                t.identifier('runtime')
-              ),
-              t.importSpecifier(
-                t.identifier('useForceUpdate'),
-                t.identifier('useForceUpdate')
-              )
-            ],
-            t.stringLiteral('../')
-          )
-        );
-      },
-      ExpressionStatement(path) {
-        if (!t.isAssignmentExpression(path.node.expression)) return;
-        const { left, right } = path.node.expression;
-        if (
-          t.isMemberExpression(left) &&
-          left.object.name === "module" &&
-          left.property.name === "exports" &&
-          t.isFunctionExpression(right)
-        ) {
-          path.replaceWith(
-            t.exportDefaultDeclaration(
-              t.functionDeclaration(
-                t.identifier('template'),
-                right.params,
-                right.body,
-                right.generator,
-                right.async
-              )
-            )
-          );
-          path.insertAfter(parse(`
-            export function ReactWrapper(props) {
-              const presenter = Presenter();
-              const root = template({ ...presenter, ...props });
-              const forceUpdate = useForceUpdate();
-              React.useEffect(() => {
-                root.observed.forEach(observable => observable.observe(forceUpdate));
-                return () => {
-                  root.observed.forEach(observable => observable.stopObserving(forceUpdate));
-                };
-              });
-              return root.root;
-            }
-          `, { sourceType: 'module', plugins: [] }).program.body);
+      CallExpression(path, state) {
+        const { node } = path;
+        const { arguments: args, callee } = node;
+        if (isRuntime(callee)) {
+          args[1] = t.stringLiteral(state.filename.substring(state.cwd.length + 1));
+        } else if (isRootElement(callee)) {
+          node.arguments = [args[0], args[2], args[3]];
+          node.arguments[1] = t.functionExpression(null, [], t.blockStatement([t.returnStatement(node.arguments[1])]));
         }
       }
     }
