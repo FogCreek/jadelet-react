@@ -87,19 +87,7 @@ function getJadeletComponent(tagName) {
   return Component;
 }
 
-const templatePresenterCache = new Map();
-
 export function runtime(presenter, fileName) {
-  let templateCache = templatePresenterCache.get(fileName);
-  if (!templateCache) {
-    const cache = new WeakMap();
-    templatePresenterCache.set(fileName, cache);
-    templateCache = cache;
-  }
-  const cached = templateCache.get(presenter);
-  if (cached) {
-    return cached;
-  }
   let rootElement;
   return {
     buffer(o) {
@@ -124,7 +112,6 @@ export function runtime(presenter, fileName) {
       Object.defineProperty(Component, "name", {
         value: `JadeletTemplate[${fileName}]`
       });
-      templateCache.set(presenter, Component);
       return Component;
     }
   };
