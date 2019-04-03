@@ -15,8 +15,12 @@ function mapAttrs(attrs) {
     } else if (k === "tabindex") {
       k = "tabIndex";
     }
-    const last = v[v.length - 1];
-    ret[k] = typeof last === "function" ? last() : last;
+    if (Array.isArray(v)) {
+      const last = v[v.length - 1];
+      ret[k] = typeof last === "function" ? last() : last;
+    } else {
+      console.log(v);
+    }
   });
   return ret;
 }
@@ -87,7 +91,7 @@ function getJadeletComponent(tagName) {
     const attrs = mapAttrs(attrFn.call(hookedPresenter));
     const root = createRoot();
     childrenFn.call(hookedPresenter, root);
-    return React.createElement(tagName, attrs, ...root.children.map(child => child[isJadeletReactComponent] ? React.createElement(child) : child).map(child => typeof child === "function" ? child() : child));
+    return React.createElement(tagName, attrs, ...root.children.filter(child => child !== undefined && child !== null).map(child => child[isJadeletReactComponent] ? React.createElement(child) : child).map(child => typeof child === "function" ? child() : child));
   }
   Object.defineProperties(Component, {
     name: {
