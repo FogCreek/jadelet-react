@@ -13,7 +13,8 @@ function mapAttrs(attrs) {
     delete attrs.class;
   }
   Object.entries(attrs).forEach(([k, v]) => {
-    ret[k] = v[v.length - 1];
+    const last = v[v.length - 1];
+    ret[k] = typeof last === "function" ? last() : last;
   });
   console.log(attrs);
   return attrs;
