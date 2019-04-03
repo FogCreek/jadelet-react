@@ -7,10 +7,15 @@ const isJadeletReactComponent = Symbol();
 const componentCache = new Map();
 
 function mapAttrs(attrs) {
+  const ret = {};
   if (attrs.class) {
-    attrs.className = attrs.class.join(' ');
+    ret.className = attrs.class.join(' ');
     delete attrs.class;
   }
+  Object.entries(attrs).forEach(([k, v]) => {
+    ret[k] = v[v.length - 1];
+  });
+  console.log(attrs);
   return attrs;
 }
 
