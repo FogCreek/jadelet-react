@@ -8,15 +8,16 @@ const componentCache = new Map();
 
 function mapAttrs(attrs) {
   const ret = {};
-  if (attrs.class) {
-    ret.className = attrs.class.join(' ');
-    delete attrs.class;
-  }
   Object.entries(attrs).forEach(([k, v]) => {
+    if (k === "class") {
+      ret["className"] = v.map(maybeFn => typeof maybeFn === "function" ? maybeFn() : maybeFn).join(' ');
+      return;
+    } else if (k === "tabindex") {
+      k = "tabIndex";
+    }
     const last = v[v.length - 1];
     ret[k] = typeof last === "function" ? last() : last;
   });
-  console.log(ret);
   return ret;
 }
 
@@ -86,10 +87,18 @@ function getJadeletComponent(tagName) {
     const attrs = mapAttrs(attrFn.call(hookedPresenter));
     const root = createRoot();
     childrenFn.call(hookedPresenter, root);
+    if (child[isJadeletReactComponent]) {
+      console.log(child);
+    }
     return React.createElement(tagName, attrs, ...root.children.map(child => child[isJadeletReactComponent] ? React.createElement(child) : child));
   }
-  Object.defineProperty(Component, "name", {
-    value: `Jadelet[${tagName}]`
+  Object.defineProperties(Component, {
+    name: {
+      value: `Jadelet[${tagName}]`
+    },
+    [isJadeletReactComponent]: {
+      value: true
+    }
   });
   componentCache.set(tagName, Component);
   return Component;
