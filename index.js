@@ -16,8 +16,8 @@ function mapAttrs(attrs) {
     const last = v[v.length - 1];
     ret[k] = typeof last === "function" ? last() : last;
   });
-  console.log(attrs);
-  return attrs;
+  console.log(ret);
+  return ret;
 }
 
 function createRoot() {
