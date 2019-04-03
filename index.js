@@ -2,6 +2,8 @@ import React from 'react';
 
 const PresenterContext = React.createContext();
 
+const isJadeletReactComponent = Symbol();
+
 const componentCache = new Map();
 
 function mapAttrs(attrs) {
@@ -78,7 +80,7 @@ function getJadeletComponent(tagName) {
     const attrs = mapAttrs(attrFn.call(hookedPresenter));
     const root = createRoot();
     childrenFn.call(hookedPresenter, root);
-    return React.createElement(tagName, attrs, ...root.children);
+    return React.createElement(tagName, attrs, ...root.children.map(child => child[isJadeletReactComponent] ? React.createElement(child) : child));
   }
   Object.defineProperty(Component, "name", {
     value: `Jadelet[${tagName}]`
@@ -109,8 +111,13 @@ export function runtime(presenter, fileName) {
           )
         );
       }
-      Object.defineProperty(Component, "name", {
-        value: `JadeletTemplate[${fileName}]`
+      Object.defineProperties(Component, {
+        name: {
+          value: `JadeletTemplate[${fileName}]`
+        },
+        [isJadeletReactComponent]: {
+          value: true
+        }
       });
       return Component;
     }
