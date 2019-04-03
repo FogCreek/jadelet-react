@@ -87,7 +87,7 @@ function getJadeletComponent(tagName) {
     const attrs = mapAttrs(attrFn.call(hookedPresenter));
     const root = createRoot();
     childrenFn.call(hookedPresenter, root);
-    return React.createElement(tagName, attrs, ...root.children.map(child => child[isJadeletReactComponent] ? console.log(child) || React.createElement(child) : child));
+    return React.createElement(tagName, attrs, ...root.children.map(child => child[isJadeletReactComponent] ? React.createElement(child) : child).map(child => typeof child === "function" ? child() : child));
   }
   Object.defineProperties(Component, {
     name: {
